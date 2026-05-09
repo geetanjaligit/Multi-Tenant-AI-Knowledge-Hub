@@ -16,10 +16,14 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final KnowledgeSpaceRepository spaceRepository;
+    private final AiClientService aiClientService;
 
-    public DocumentService(DocumentRepository documentRepository, KnowledgeSpaceRepository spaceRepository) {
+    public DocumentService(DocumentRepository documentRepository, 
+                           KnowledgeSpaceRepository spaceRepository,
+                           AiClientService aiClientService) {
         this.documentRepository = documentRepository;
         this.spaceRepository = spaceRepository;
+        this.aiClientService = aiClientService;
     }
 
     public Document uploadDocument(MultipartFile file, Long spaceId, Long userId) throws IOException {
@@ -41,7 +45,12 @@ public class DocumentService {
         document.setUserId(userId); // Store userId directly
         document.setStatus(Document.DocumentStatus.UPLOADED);
 
-        return documentRepository.save(document);
+        Document savedDoc = documentRepository.save(document);
+
+        // TRIGGER: Send to Python AI Service for processing
+        aiClientService.sendToAiService(savedDoc);
+
+        return savedDoc;
     }
 
     //Fetch documents for a space with multi-tenant validation

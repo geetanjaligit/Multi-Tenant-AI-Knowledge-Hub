@@ -1,7 +1,9 @@
 package com.knowledgehub.backend.service;
 
 import com.knowledgehub.backend.entity.Document;
+import com.knowledgehub.backend.entity.DocumentChunk;
 import com.knowledgehub.backend.entity.KnowledgeSpace;
+import com.knowledgehub.backend.repository.DocumentChunkRepository;
 import com.knowledgehub.backend.repository.DocumentRepository;
 import com.knowledgehub.backend.repository.KnowledgeSpaceRepository;
 import org.springframework.stereotype.Service;
@@ -16,13 +18,16 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final KnowledgeSpaceRepository spaceRepository;
+    private final DocumentChunkRepository chunkRepository;
     private final AiClientService aiClientService;
 
-    public DocumentService(DocumentRepository documentRepository, 
-                           KnowledgeSpaceRepository spaceRepository,
-                           AiClientService aiClientService) {
+    public DocumentService(DocumentRepository documentRepository,
+            KnowledgeSpaceRepository spaceRepository,
+            DocumentChunkRepository chunkRepository,
+            AiClientService aiClientService) {
         this.documentRepository = documentRepository;
         this.spaceRepository = spaceRepository;
+        this.chunkRepository = chunkRepository;
         this.aiClientService = aiClientService;
     }
 
@@ -48,12 +53,24 @@ public class DocumentService {
         Document savedDoc = documentRepository.save(document);
 
         // TRIGGER: Send to Python AI Service for processing
-        aiClientService.sendToAiService(savedDoc);
+        List<String> chunks = aiClientService.sendToAiService(savedDoc);
+
+        // Save Chunks in PostgreSQL
+        if (chunks != null) {
+            for (int i = 0; i < chunks.size(); i++) {
+                DocumentChunk chunk = new DocumentChunk();
+                chunk.setContent(chunks.get(i));
+                chunk.setChunkIndex(i);
+                chunk.setDocument(savedDoc);
+                chunkRepository.save(chunk);
+            }
+            System.out.println("Saved " + chunks.size() + " chunks in the database.");
+        }
 
         return savedDoc;
     }
 
-    //Fetch documents for a space with multi-tenant validation
+    // Fetch documents for a space with multi-tenant validation
     public List<Document> getDocumentsBySpace(Long spaceId, Long userId) {
         return documentRepository.findByKnowledgeSpaceIdAndUserId(spaceId, userId);
     }

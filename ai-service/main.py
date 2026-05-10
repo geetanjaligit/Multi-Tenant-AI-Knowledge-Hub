@@ -47,5 +47,6 @@ async def process_document(request: ProcessRequest):
     return {
         "message": "Document chunked successfully",
         "document_id": request.document_id,
-        "total_chunks": len(chunks)
+        "total_chunks": len(chunks),
+        "chunks": chunks  # Returning the actual list of text chunks
     }

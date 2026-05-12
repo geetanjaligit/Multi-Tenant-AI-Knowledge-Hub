@@ -20,6 +20,9 @@ public class DocumentChunk {
     @Column(nullable = false)
     private Integer chunkIndex; // To maintain the original order of the document
 
+    @Column(columnDefinition = "TEXT")
+    private String embedding; // Stored as JSON string for now
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", nullable = false)
     private Document document;

@@ -1,5 +1,6 @@
 package com.knowledgehub.backend.service;
 
+import com.knowledgehub.backend.dto.AiProcessingResponse;
 import com.knowledgehub.backend.entity.Document;
 import com.knowledgehub.backend.entity.DocumentChunk;
 import com.knowledgehub.backend.entity.KnowledgeSpace;
@@ -52,19 +53,36 @@ public class DocumentService {
 
         Document savedDoc = documentRepository.save(document);
 
-        // TRIGGER: Send to Python AI Service for processing
-        List<String> chunks = aiClientService.sendToAiService(savedDoc);
+        // 1. UPDATE STATUS TO PROCESSING
+        savedDoc.setStatus(Document.DocumentStatus.PROCESSING);
+        documentRepository.save(savedDoc);
 
-        // Save Chunks in PostgreSQL
-        if (chunks != null) {
-            for (int i = 0; i < chunks.size(); i++) {
+        // 2. TRIGGER: Send to Python AI Service
+        AiProcessingResponse aiResponse = aiClientService.sendToAiService(savedDoc);
+
+        // 3. Save Chunks and Embeddings
+        if (aiResponse != null && "success".equals(aiResponse.getStatus())) {
+            for (AiProcessingResponse.ChunkData chunkData : aiResponse.getData()) {
                 DocumentChunk chunk = new DocumentChunk();
-                chunk.setContent(chunks.get(i));
-                chunk.setChunkIndex(i);
+                chunk.setContent(chunkData.getContent());
+                chunk.setChunkIndex(chunkData.getChunkIndex());
                 chunk.setDocument(savedDoc);
+                
+                // Convert List<Double> to String for temporary storage
+                chunk.setEmbedding(chunkData.getEmbedding().toString());
+                
                 chunkRepository.save(chunk);
             }
-            System.out.println("Saved " + chunks.size() + " chunks in the database.");
+            
+            // 4. UPDATE STATUS TO INDEXED
+            savedDoc.setStatus(Document.DocumentStatus.INDEXED);
+            documentRepository.save(savedDoc);
+            System.out.println("Saved " + aiResponse.getTotal_chunks() + " chunks with embeddings.");
+        } else {
+            // 5. UPDATE STATUS TO FAILED
+            savedDoc.setStatus(Document.DocumentStatus.FAILED);
+            documentRepository.save(savedDoc);
+            System.err.println("AI Processing Failed for document: " + savedDoc.getId());
         }
 
         return savedDoc;

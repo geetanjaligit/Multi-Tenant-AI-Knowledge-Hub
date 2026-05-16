@@ -21,7 +21,10 @@ public class DocumentChunk {
     private Integer chunkIndex; // To maintain the original order of the document
 
     @Column(columnDefinition = "TEXT")
-    private String embedding; // Stored as JSON string for now
+    private String embedding; // Temporary TEXT storage
+
+    @Column(columnDefinition = "vector(3072)")
+    private float[] embeddingVector; // The real vector for pgvector
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", nullable = false)

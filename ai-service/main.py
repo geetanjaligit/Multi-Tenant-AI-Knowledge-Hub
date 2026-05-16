@@ -1,7 +1,12 @@
 import os
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
+# pyrefly: ignore [missing-import]
 from google import genai
+# pyrefly: ignore [missing-import]
+from google.genai import types
 from dotenv import load_dotenv
 
 # Load Environment Variables
@@ -65,7 +70,7 @@ async def process_document(request: ProcessRequest):
                 response = client.models.embed_content(
                     model=model_name,
                     contents=chunks,
-                    config=genai.types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+                    config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
                 )
                 used_model = model_name
                 break 
@@ -79,19 +84,31 @@ async def process_document(request: ProcessRequest):
         if not response:
             raise Exception("No supported embedding models found for your API key.")
 
-        print(f"Successfully generated {len(response.embeddings)} embeddings using {used_model}.")
-
-        # SDK returns embeddings directly in a list
-        embeddings = response.embeddings
+        # In the new SDK, response.embeddings is the list we need
+        embeddings = [e.values for e in response.embeddings]
+        print(f"Generated {len(embeddings)} embeddings for {len(chunks)} chunks using {used_model}.")
 
         # Step 3: Combine text with its embedding
         response_data = []
+        
+        # SAFETY CHECK: Ensure we have an embedding for every chunk
+        if len(embeddings) != len(chunks):
+            # If batching failed, we fallback to a simple loop (slower but guaranteed)
+            print("Batch size mismatch! Falling back to individual embedding calls...")
+            embeddings = []
+            for c in chunks:
+                res = client.models.embed_content(
+                    model=used_model,
+                    contents=c,
+                    config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+                )
+                embeddings.append(res.embeddings[0].values)
+
         for i in range(len(chunks)):
-            # Each embedding has a 'values' property in the new SDK
             response_data.append({
                 "content": chunks[i],
                 "chunkIndex": i,
-                "embedding": embeddings[i].values # This is a list of floats
+                "embedding": embeddings[i]
             })
 
         return {
@@ -103,6 +120,55 @@ async def process_document(request: ProcessRequest):
 
     except Exception as e:
         print(f"Error during AI processing: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+# 5. NEW: Endpoint for Semantic Search Query Embedding
+class QueryRequest(BaseModel):
+    query: str
+
+@app.post("/embed-query")
+async def embed_query(request: QueryRequest):
+    print(f"--- Generating Embedding for Query: {request.query[:50]}... ---")
+    
+    if not client:
+        return {"status": "error", "message": "Gemini API key not configured"}
+
+    try:
+        # For queries, we use RETRIEVAL_QUERY task type for better matching
+        models_to_try = ["models/gemini-embedding-2", "models/gemini-embedding-001"]
+        response = None
+        used_model = ""
+
+        for model_name in models_to_try:
+            try:
+                response = client.models.embed_content(
+                    model=model_name,
+                    contents=request.query,
+                    config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
+                )
+                used_model = model_name
+                break 
+            except Exception as e:
+                if "404" in str(e):
+                    continue
+                else:
+                    raise e
+
+        if not response:
+            raise Exception("No supported embedding models found.")
+
+        # Return a single vector (not a list of vectors like in /process)
+        return {
+            "status": "success",
+            "embedding": response.embeddings[0].values,
+            "model": used_model
+        }
+
+    except Exception as e:
+        print(f"Error during query embedding: {str(e)}")
         return {
             "status": "error",
             "message": str(e)

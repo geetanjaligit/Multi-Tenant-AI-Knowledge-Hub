@@ -58,31 +58,44 @@ public class DocumentService {
         documentRepository.save(savedDoc);
 
         // 2. TRIGGER: Send to Python AI Service
-        AiProcessingResponse aiResponse = aiClientService.sendToAiService(savedDoc);
+        try {
+            AiProcessingResponse aiResponse = aiClientService.sendToAiService(savedDoc);
 
-        // 3. Save Chunks and Embeddings
-        if (aiResponse != null && "success".equals(aiResponse.getStatus())) {
-            for (AiProcessingResponse.ChunkData chunkData : aiResponse.getData()) {
-                DocumentChunk chunk = new DocumentChunk();
-                chunk.setContent(chunkData.getContent());
-                chunk.setChunkIndex(chunkData.getChunkIndex());
-                chunk.setDocument(savedDoc);
+            // 3. Save Chunks and Embeddings
+            if (aiResponse != null && "success".equals(aiResponse.getStatus())) {
+                for (AiProcessingResponse.ChunkData chunkData : aiResponse.getData()) {
+                    DocumentChunk chunk = new DocumentChunk();
+                    chunk.setDocument(savedDoc); // CRITICAL FIX: Link chunk to document
+                    chunk.setContent(chunkData.getContent());
+                    chunk.setChunkIndex(chunkData.getChunkIndex());
+                    
+                    // 1. Store as TEXT (Temporary)
+                    chunk.setEmbedding(chunkData.getEmbedding().toString());
+                    
+                    // 2. Store as VECTOR (New)
+                    List<Double> embeddingList = chunkData.getEmbedding();
+                    float[] vector = new float[embeddingList.size()];
+                    for (int i = 0; i < embeddingList.size(); i++) {
+                        vector[i] = embeddingList.get(i).floatValue();
+                    }
+                    chunk.setEmbeddingVector(vector);
+                    
+                    chunkRepository.save(chunk);
+                }
                 
-                // Convert List<Double> to String for temporary storage
-                chunk.setEmbedding(chunkData.getEmbedding().toString());
-                
-                chunkRepository.save(chunk);
+                // 4. UPDATE STATUS TO INDEXED
+                savedDoc.setStatus(Document.DocumentStatus.INDEXED);
+                documentRepository.save(savedDoc);
+                System.out.println("--- Success: Saved " + aiResponse.getTotalChunks() + " chunks ---");
+            } else {
+                // 5. UPDATE STATUS TO FAILED
+                savedDoc.setStatus(Document.DocumentStatus.FAILED);
+                documentRepository.save(savedDoc);
+                System.err.println("--- AI Service returned failure or null ---");
             }
-            
-            // 4. UPDATE STATUS TO INDEXED
-            savedDoc.setStatus(Document.DocumentStatus.INDEXED);
-            documentRepository.save(savedDoc);
-            System.out.println("Saved " + aiResponse.getTotal_chunks() + " chunks with embeddings.");
-        } else {
-            // 5. UPDATE STATUS TO FAILED
+        } catch (Exception e) {
             savedDoc.setStatus(Document.DocumentStatus.FAILED);
             documentRepository.save(savedDoc);
-            System.err.println("AI Processing Failed for document: " + savedDoc.getId());
         }
 
         return savedDoc;

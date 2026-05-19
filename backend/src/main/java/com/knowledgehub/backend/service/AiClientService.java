@@ -61,4 +61,25 @@ public class AiClientService {
         }
         return null;
     }
+
+    /**
+     * NEW: Generates the final human-readable answer using the Python RAG endpoint.
+     */
+    public String generateFinalAnswer(String query, String context) {
+        String url = "http://localhost:8000/generate-answer";
+        com.knowledgehub.backend.dto.GenerateAnswerRequest request = new com.knowledgehub.backend.dto.GenerateAnswerRequest(query, context);
+
+        try {
+            com.knowledgehub.backend.dto.GenerateAnswerResponse response = restTemplate.postForObject(url, request, com.knowledgehub.backend.dto.GenerateAnswerResponse.class);
+            if (response != null && "success".equals(response.getStatus())) {
+                return response.getAnswer();
+            } else if (response != null) {
+                System.err.println("--- Error from AI Service: " + response.getMessage() + " ---");
+            }
+        } catch (Exception e) {
+            System.err.println("--- Error: Could not connect to AI Service for generation ---");
+            System.err.println("Reason: " + e.getMessage());
+        }
+        return "Sorry, I am unable to generate an answer at this moment.";
+    }
 }

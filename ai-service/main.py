@@ -173,3 +173,46 @@ async def embed_query(request: QueryRequest):
             "status": "error",
             "message": str(e)
         }
+
+# 6. Endpoint for Final Answer Generation
+class GenerateRequest(BaseModel):
+    query: str
+    context: str
+
+@app.post("/generate-answer")
+async def generate_answer(request: GenerateRequest):
+    if not client:
+        return {"status": "error", "message": "Gemini API key not configured"}
+
+    try:
+        # Prompt engineering: Strict rules to avoid hallucination
+        prompt = f"""You are a helpful AI assistant.
+
+Use ONLY the provided CONTEXT to answer the QUESTION.
+
+If the answer is not found in the context, respond EXACTLY with:
+"I don't know based on the provided documents."
+
+CONTEXT:
+{request.context}
+
+QUESTION:
+{request.query}
+"""
+        
+        # Use an available text generation model (gemini-2.5-flash is fast and perfect for RAG)
+        response = client.models.generate_content(
+            model='models/gemini-2.5-flash',
+            contents=prompt,
+        )
+
+        return {
+            "status": "success",
+            "answer": response.text
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }

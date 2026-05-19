@@ -1,12 +1,11 @@
 package com.knowledgehub.backend.service;
 
-import com.knowledgehub.backend.entity.DocumentChunk;
 import com.knowledgehub.backend.repository.DocumentChunkRepository;
 import com.knowledgehub.backend.dto.SearchRequest;
+import com.knowledgehub.backend.dto.SearchResponse;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class SearchService {
@@ -19,7 +18,7 @@ public class SearchService {
         this.chunkRepository = chunkRepository;
     }
 
-    public List<String> performSemanticSearch(SearchRequest request) {
+    public SearchResponse performSemanticSearch(SearchRequest request) {
         try {
             // 1. Get Vector for the User's Query from Python
             float[] queryVector = aiClientService.getQueryEmbedding(request.getQuery());
@@ -40,9 +39,40 @@ public class SearchService {
                     5
             );
 
-            return results.stream()
-                    .map(row -> (String) row[0])
-                    .collect(Collectors.toList());
+            SearchResponse response = new SearchResponse();
+            List<SearchResponse.Source> sources = new ArrayList<>();
+            StringBuilder contextBuilder = new StringBuilder();
+
+            // Guard: If no context is found, return safely without calling LLM
+            if (results == null || results.isEmpty()) {
+                response.setAnswer("I don't know based on the provided documents. No relevant information was found.");
+                response.setSources(sources);
+                return response;
+            }
+
+            int chunkCount = 1;
+            for (Object[] row : results) {
+                String content = (String) row[0];
+                Integer chunkIndex = (Integer) row[1];
+                
+                // Build the source list for UI citations
+                SearchResponse.Source source = new SearchResponse.Source();
+                source.setContent(content);
+                source.setChunkIndex(chunkIndex);
+                sources.add(source);
+
+                // Build formatted context for LLM (Clean mental model)
+                contextBuilder.append("[Chunk ").append(chunkCount).append("]\n")
+                              .append(content).append("\n\n");
+                chunkCount++;
+            }
+
+            // 4. Generate final human-like answer using RAG
+            String generatedAnswer = aiClientService.generateFinalAnswer(request.getQuery(), contextBuilder.toString());
+
+            response.setAnswer(generatedAnswer);
+            response.setSources(sources);
+            return response;
 
         } catch (Exception e) {
             throw new RuntimeException("Semantic search failed: " + e.getMessage());

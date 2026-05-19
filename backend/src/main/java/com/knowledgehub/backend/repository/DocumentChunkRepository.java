@@ -12,7 +12,7 @@ import java.util.List;
 public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Long> {
     List<DocumentChunk> findByDocumentId(Long documentId);
 
-    @Query(value = "SELECT dc.content, (dc.embedding_vector <=> cast(:queryEmbedding as vector(3072))) as distance " +
+    @Query(value = "SELECT dc.content, dc.chunk_index, (dc.embedding_vector <=> cast(:queryEmbedding as vector(3072))) as distance " +
                    "FROM document_chunks dc " +
                    "JOIN documents d ON dc.document_id = d.id " +
                    "WHERE d.user_id = :userId " +

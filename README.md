@@ -391,7 +391,7 @@ http://localhost:8000
 
 ---
 
-# 🧪 10. Sample API Flow (Copy-Paste Ready 📋)
+# 🧪 10. Sample API Flow
 
 ## ✅ STEP 1: Register User
 

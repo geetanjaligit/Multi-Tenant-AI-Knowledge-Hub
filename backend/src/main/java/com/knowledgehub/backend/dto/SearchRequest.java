@@ -6,5 +6,6 @@ import lombok.Data;
 public class SearchRequest {
     private String query;
     private Long spaceId;
-    private Long userId;
+    // NOTE: userId is intentionally removed. It will be extracted from the
+    // secure JWT token, not trusted from the request body.
 }

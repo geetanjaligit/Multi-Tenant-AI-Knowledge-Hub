@@ -105,11 +105,4 @@ public class DocumentService {
     public List<Document> getDocumentsBySpace(Long spaceId, Long userId) {
         return documentRepository.findByKnowledgeSpaceIdAndUserId(spaceId, userId);
     }
-
-    public void updateDocumentStatus(Long docId, Document.DocumentStatus status) {
-        Document doc = documentRepository.findById(docId)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
-        doc.setStatus(status);
-        documentRepository.save(doc);
-    }
 }

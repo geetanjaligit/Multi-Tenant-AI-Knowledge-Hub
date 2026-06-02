@@ -2,6 +2,8 @@ package com.knowledgehub.backend.service;
 
 import com.knowledgehub.backend.dto.AiProcessingResponse;
 import com.knowledgehub.backend.entity.Document;
+import com.knowledgehub.backend.dto.GenerateAnswerRequest;
+import com.knowledgehub.backend.dto.GenerateAnswerResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
@@ -67,10 +69,10 @@ public class AiClientService {
      */
     public String generateFinalAnswer(String query, String context) {
         String url = "http://localhost:8000/generate-answer";
-        com.knowledgehub.backend.dto.GenerateAnswerRequest request = new com.knowledgehub.backend.dto.GenerateAnswerRequest(query, context);
+        GenerateAnswerRequest request = new GenerateAnswerRequest(query, context);
 
         try {
-            com.knowledgehub.backend.dto.GenerateAnswerResponse response = restTemplate.postForObject(url, request, com.knowledgehub.backend.dto.GenerateAnswerResponse.class);
+            GenerateAnswerResponse response = restTemplate.postForObject(url, request,GenerateAnswerResponse.class);
             if (response != null && "success".equals(response.getStatus())) {
                 return response.getAnswer();
             } else if (response != null) {

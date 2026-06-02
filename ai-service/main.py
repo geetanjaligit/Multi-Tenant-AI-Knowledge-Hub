@@ -22,7 +22,6 @@ if api_key:
 app = FastAPI(title="Multi-Tenant AI Knowledge Hub - AI Service")
 
 # 2. Define a simple Data Model (Request Body)
-# In Spring Boot terms: This is a DTO (Data Transfer Object)
 class ProcessRequest(BaseModel):
     document_id: int
     content: str
@@ -46,7 +45,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50):
 async def root():
     return {"status": "AI Service is Up and Running"}
 
-# 4. Updated processing endpoint with Batch Embeddings
+# 4. Processing endpoint with Batch Embeddings
 @app.post("/process")
 async def process_document(request: ProcessRequest):
     print(f"--- Processing Document {request.document_id} ---")
@@ -200,7 +199,7 @@ QUESTION:
 {request.query}
 """
         
-        # Use an available text generation model (gemini-2.5-flash is fast and perfect for RAG)
+        # Use an available text generation model
         response = client.models.generate_content(
             model='models/gemini-2.5-flash',
             contents=prompt,

@@ -9,6 +9,6 @@ import java.util.List;
 @Repository
 public interface KnowledgeSpaceRepository extends JpaRepository<KnowledgeSpace, Long> {
 
-    // Core Multi-Tenancy Search: Fetch spaces only belonging to a specific user
+    //Fetch spaces only belonging to a specific user
     List<KnowledgeSpace> findByUserId(Long userId);
 }

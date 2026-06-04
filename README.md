@@ -333,15 +333,17 @@ CREATE EXTENSION vector;
 
 ## 📌 Step 3: Configure Environment Variables
 
-Update `application.properties`
+Create a `.env` file in the `backend/` directory (this is automatically loaded by the `spring-dotenv` library):
 
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/knowledgehub
-spring.datasource.username=postgres
-spring.datasource.password=your_password
-
-jwt.secret=your_secret_key
+```env
+DB_URL=jdbc:postgresql://localhost:5432/knowledgehub
+DB_USERNAME=postgres
+DB_PASSWORD=your_postgres_password
+JWT_SECRET=your_secure_jwt_signing_key_here
 ```
+
+This keeps your credentials secure and prevents them from being committed to GitHub.
+
 
 ---
 
